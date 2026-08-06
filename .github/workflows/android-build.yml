@@ -1,0 +1,62 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Pruebas y APK de depuración
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Generar el Gradle Wrapper si no está en el repositorio
+        run: |
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "No hay gradle-wrapper.jar; se genera con Gradle 8.9."
+            gradle wrapper --gradle-version 8.9 --distribution-type bin
+          fi
+          chmod +x gradlew
+
+      - name: Ejecutar las pruebas unitarias
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Compilar el APK de depuración
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Guardar app-debug.apk como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Guardar los informes de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-de-pruebas
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
