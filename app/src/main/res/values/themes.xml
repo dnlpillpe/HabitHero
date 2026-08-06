@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema base de ventana. Todo el estilo real vive en Compose (ui/theme). -->
+    <style name="Theme.HabitHero" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/hero_azul</item>
+        <item name="android:navigationBarColor">@color/hero_fondo</item>
+        <item name="android:windowBackground">@color/hero_fondo</item>
+    </style>
+</resources>
