@@ -23,4 +23,10 @@ interface UserProfileDao {
 
     @Query("UPDATE user_profile SET nombre = :nombre, avatar = :avatar, onboardingCompletado = 1 WHERE id = 1")
     suspend fun completarBienvenida(nombre: String, avatar: String)
+
+    @Query("UPDATE user_profile SET monedas = :monedas WHERE id = 1")
+    suspend fun actualizarMonedas(monedas: Int)
+
+    @Query("UPDATE user_profile SET avatar = :avatar, marcoSeleccionado = :marco WHERE id = 1")
+    suspend fun actualizarAvatarYMarco(avatar: String, marco: String?)
 }

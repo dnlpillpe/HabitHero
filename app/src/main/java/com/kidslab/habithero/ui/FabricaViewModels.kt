@@ -11,6 +11,7 @@ import com.kidslab.habithero.ui.screens.habitedit.EditorHabitoViewModel
 import com.kidslab.habithero.ui.screens.home.InicioViewModel
 import com.kidslab.habithero.ui.screens.progress.ProgresoViewModel
 import com.kidslab.habithero.ui.screens.settings.ConfiguracionViewModel
+import com.kidslab.habithero.ui.screens.shop.TiendaViewModel
 import com.kidslab.habithero.ui.screens.welcome.BienvenidaViewModel
 
 /** Fábrica única para todos los ViewModel de la app. */
@@ -20,12 +21,16 @@ object FabricaViewModels {
         initializer { RaizViewModel(repositorio()) }
         initializer { BienvenidaViewModel(repositorio()) }
         initializer { InicioViewModel(repositorio()) }
-        initializer { EditorHabitoViewModel(repositorio()) }
+        initializer { EditorHabitoViewModel(repositorio(), aplicacion()) }
         initializer { ProgresoViewModel(repositorio()) }
         initializer { InsigniasViewModel(repositorio()) }
         initializer { ConfiguracionViewModel(repositorio()) }
+        initializer { TiendaViewModel(repositorio()) }
     }
 }
 
 private fun CreationExtras.repositorio(): HabitHeroRepository =
-    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as HabitHeroApp).repositorio
+    aplicacion().repositorio
+
+private fun CreationExtras.aplicacion(): HabitHeroApp =
+    this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as HabitHeroApp

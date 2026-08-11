@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import com.kidslab.habithero.ui.screens.habitedit.PantallaEditorHabito
 import com.kidslab.habithero.ui.screens.home.PantallaInicio
 import com.kidslab.habithero.ui.screens.progress.PantallaProgreso
 import com.kidslab.habithero.ui.screens.settings.PantallaConfiguracion
+import com.kidslab.habithero.ui.screens.shop.PantallaTienda
 import com.kidslab.habithero.ui.screens.welcome.PantallaBienvenida
 
 private data class Destino(val ruta: String, val etiqueta: String, val icono: ImageVector)
@@ -49,6 +51,7 @@ private val DESTINOS = listOf(
     Destino(Rutas.INICIO, "Hoy", Icons.Filled.Home),
     Destino(Rutas.PROGRESO, "Semana", Icons.Filled.DateRange),
     Destino(Rutas.INSIGNIAS, "Premios", Icons.Filled.Star),
+    Destino(Rutas.TIENDA, "Tienda", Icons.Filled.ShoppingCart),
     Destino(Rutas.CONFIGURACION, "Ajustes", Icons.Filled.Settings)
 )
 
@@ -166,6 +169,10 @@ private fun GrafoHabitHero(navController: NavHostController, destinoInicial: Str
 
             composable(Rutas.INSIGNIAS) {
                 PantallaInsignias()
+            }
+
+            composable(Rutas.TIENDA) {
+                PantallaTienda()
             }
 
             composable(Rutas.CONFIGURACION) {

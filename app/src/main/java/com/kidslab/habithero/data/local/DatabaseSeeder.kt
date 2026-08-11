@@ -25,19 +25,21 @@ object DatabaseSeeder {
 
         // --- Hábitos predeterminados (1..7 = lunes..domingo) ---
         val habitos = listOf(
-            Semilla(1, "Cepillarse los dientes", "🦷", "1,2,3,4,5,6,7", 0),
-            Semilla(2, "Beber agua", "💧", "1,2,3,4,5,6,7", 1),
-            Semilla(3, "Leer un rato", "📚", "1,2,3,4,5", 2),
-            Semilla(4, "Ordenar el dormitorio", "🧹", "1,2,3,4,5,6,7", 3),
-            Semilla(5, "Preparar la mochila", "🎒", "1,2,3,4,5", 4),
-            Semilla(6, "Dormir a tiempo", "😴", "1,2,3,4,5,6,7", 5)
+            Semilla(1, "Cepillarse los dientes", "🦷", "1,2,3,4,5,6,7", 0, "SALUD"),
+            Semilla(2, "Beber agua", "💧", "1,2,3,4,5,6,7", 1, "SALUD"),
+            Semilla(3, "Leer un rato", "📚", "1,2,3,4,5", 2, "ESTUDIO"),
+            Semilla(4, "Ordenar el dormitorio", "🧹", "1,2,3,4,5,6,7", 3, "HOGAR"),
+            Semilla(5, "Preparar la mochila", "🎒", "1,2,3,4,5", 4, "ESTUDIO"),
+            Semilla(6, "Dormir a tiempo", "😴", "1,2,3,4,5,6,7", 5, "SALUD")
         )
         habitos.forEachIndexed { indice, h ->
             db.execSQL(
                 """
                 INSERT OR IGNORE INTO habit
-                    (id, nombre, icono, diasSemana, colorIndex, esPredeterminado, activo, orden, fechaCreacion)
-                VALUES (${h.id}, '${h.nombre}', '${h.icono}', '${h.dias}', ${h.color}, 1, 1, $indice, $hoyEpoch)
+                    (id, nombre, icono, diasSemana, colorIndex, esPredeterminado, activo, orden, fechaCreacion,
+                     horaRecordatorioMinutos, categoria)
+                VALUES (${h.id}, '${h.nombre}', '${h.icono}', '${h.dias}', ${h.color}, 1, 1, $indice, $hoyEpoch,
+                     NULL, '${h.categoria}')
                 """.trimIndent()
             )
         }
@@ -85,7 +87,8 @@ object DatabaseSeeder {
         val nombre: String,
         val icono: String,
         val dias: String,
-        val color: Int
+        val color: Int,
+        val categoria: String
     )
 
     private data class Insignia(

@@ -37,7 +37,7 @@ import com.kidslab.habithero.ui.theme.MentaLogro
 import com.kidslab.habithero.ui.theme.OroMedalla
 import com.kidslab.habithero.util.FechasEs
 
-/** Pantalla 5 de 6: insignias y recompensas. */
+/** Pantalla 6 de 7: insignias y recompensas. */
 @Composable
 fun PantallaInsignias(
     viewModel: InsigniasViewModel = viewModel(factory = FabricaViewModels.Factory)

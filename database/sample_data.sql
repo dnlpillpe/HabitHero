@@ -11,22 +11,26 @@
 -- =====================================================================
 
 -- El héroe. onboardingCompletado = 0 hace que la app muestre la
--- pantalla de bienvenida en el primer arranque.
+-- pantalla de bienvenida en el primer arranque. marcoSeleccionado
+-- empieza en NULL: todavía no ha comprado nada en la tienda.
 INSERT OR IGNORE INTO user_profile
-    (id, nombre, avatar, monedas, experiencia, nivel, fechaCreacion, onboardingCompletado)
+    (id, nombre, avatar, monedas, experiencia, nivel, fechaCreacion, onboardingCompletado, marcoSeleccionado)
 VALUES
-    (1, 'Héroe', '🦸', 0, 0, 1, CAST(julianday('now') - 2440587.5 AS INTEGER), 0);
+    (1, 'Héroe', '🦸', 0, 0, 1, CAST(julianday('now') - 2440587.5 AS INTEGER), 0, NULL);
 
--- Los seis hábitos predeterminados.
+-- Los seis hábitos predeterminados, ya con categoría asignada.
+-- horaRecordatorioMinutos empieza en NULL: el recordatorio es opcional
+-- y se activa desde el editor de cada hábito.
 INSERT OR IGNORE INTO habit
-    (id, nombre, icono, diasSemana, colorIndex, esPredeterminado, activo, orden, fechaCreacion)
+    (id, nombre, icono, diasSemana, colorIndex, esPredeterminado, activo, orden, fechaCreacion,
+     horaRecordatorioMinutos, categoria)
 VALUES
-    (1, 'Cepillarse los dientes', '🦷', '1,2,3,4,5,6,7', 0, 1, 1, 0, CAST(julianday('now') - 2440587.5 AS INTEGER)),
-    (2, 'Beber agua',             '💧', '1,2,3,4,5,6,7', 1, 1, 1, 1, CAST(julianday('now') - 2440587.5 AS INTEGER)),
-    (3, 'Leer un rato',           '📚', '1,2,3,4,5',     2, 1, 1, 2, CAST(julianday('now') - 2440587.5 AS INTEGER)),
-    (4, 'Ordenar el dormitorio',  '🧹', '1,2,3,4,5,6,7', 3, 1, 1, 3, CAST(julianday('now') - 2440587.5 AS INTEGER)),
-    (5, 'Preparar la mochila',    '🎒', '1,2,3,4,5',     4, 1, 1, 4, CAST(julianday('now') - 2440587.5 AS INTEGER)),
-    (6, 'Dormir a tiempo',        '😴', '1,2,3,4,5,6,7', 5, 1, 1, 5, CAST(julianday('now') - 2440587.5 AS INTEGER));
+    (1, 'Cepillarse los dientes', '🦷', '1,2,3,4,5,6,7', 0, 1, 1, 0, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'SALUD'),
+    (2, 'Beber agua',             '💧', '1,2,3,4,5,6,7', 1, 1, 1, 1, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'SALUD'),
+    (3, 'Leer un rato',           '📚', '1,2,3,4,5',     2, 1, 1, 2, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'ESTUDIO'),
+    (4, 'Ordenar el dormitorio',  '🧹', '1,2,3,4,5,6,7', 3, 1, 1, 3, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'HOGAR'),
+    (5, 'Preparar la mochila',    '🎒', '1,2,3,4,5',     4, 1, 1, 4, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'ESTUDIO'),
+    (6, 'Dormir a tiempo',        '😴', '1,2,3,4,5,6,7', 5, 1, 1, 5, CAST(julianday('now') - 2440587.5 AS INTEGER), NULL, 'SALUD');
 
 -- Catálogo de insignias.
 INSERT OR IGNORE INTO badge (id, nombre, descripcion, icono, tipo, meta, orden) VALUES
@@ -49,5 +53,6 @@ INSERT OR IGNORE INTO habit_completion (habitId, fecha, monedasGanadas, experien
     (3, CAST(julianday('now', '-2 days') - 2440587.5 AS INTEGER), 5, 10),
     (6, CAST(julianday('now', '-1 day')  - 2440587.5 AS INTEGER), 5, 10);
 
--- Nota: user_badge empieza vacía a propósito. Las insignias se conceden
--- desde la app cuando se cumplen las condiciones, nunca de antemano.
+-- Nota: user_badge, user_unlock y daily_challenge empiezan vacías a
+-- propósito. Las insignias, las compras de la tienda y el desafío del
+-- día se generan desde la app, nunca de antemano.

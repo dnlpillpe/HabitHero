@@ -1,14 +1,18 @@
 # HabitHero 🦸
 
 Aplicación Android nativa para que **niños de 8 a 12 años** construyan hábitos
-diarios: marcar, ver la racha, ganar monedas y experiencia, subir de nivel y
-conseguir insignias. Todo en español, con botones grandes, iconos y muy poco
-texto.
+diarios: marcar, ver la racha, ganar monedas y experiencia, subir de nivel,
+conseguir insignias, cumplir un desafío sorpresa cada día y gastar sus monedas
+en la tienda de avatares y marcos. Todo en español, con botones grandes,
+iconos y muy poco texto.
 
-**Funciona completamente sin conexión.** No pide permisos, no tiene registro ni
-login, no muestra publicidad, no hace compras, no usa mapas ni analítica y no
-envía datos a ningún servidor. Toda la información vive en el dispositivo, en
-una base de datos SQLite gestionada con Room.
+**Funciona completamente sin conexión.** No tiene registro ni login, no
+muestra publicidad, no hace compras reales, no usa mapas ni analítica y no
+envía datos a ningún servidor. Los únicos permisos que pide son, de forma
+opcional, los necesarios para mostrar el recordatorio local de un hábito
+(notificaciones y volver a programarlas tras reiniciar el móvil); sin ellos,
+la app funciona igual. Toda la información vive en el dispositivo, en una
+base de datos SQLite gestionada con Room.
 
 ---
 
@@ -29,14 +33,19 @@ No se usa Flutter, React Native, Expo, Firebase, ni ninguna API externa.
 
 ---
 
-## Las seis pantallas
+## Las siete pantallas
 
 1. **Bienvenida** — elección de avatar y nombre. Solo aparece la primera vez.
-2. **Inicio** — los hábitos de hoy, con nivel, monedas y progreso.
-3. **Crear o editar hábito** — nombre, icono, color y días de la semana.
-4. **Progreso** — resumen visual de los últimos siete días y rachas.
-5. **Insignias** — premios conseguidos y el camino hacia los siguientes.
-6. **Ajustes** — nombre y avatar del héroe, y reinicio de datos con confirmación.
+2. **Inicio** — los hábitos de hoy filtrables por categoría, el desafío
+   sorpresa del día, nivel, monedas y progreso.
+3. **Crear o editar hábito** — nombre, icono, color, categoría, días de la
+   semana y recordatorio local opcional.
+4. **Progreso** — resumen visual de los últimos siete días y rachas,
+   agrupado por categoría.
+5. **Tienda** — gastar las monedas ganadas en avatares y marcos nuevos.
+6. **Insignias** — premios conseguidos y el camino hacia los siguientes.
+7. **Ajustes** — nombre, avatar y marco del héroe, y reinicio de datos con
+   confirmación.
 
 ---
 
@@ -122,11 +131,12 @@ El `.gitignore` ya contempla la excepción para el `.jar`.
 ```
 habit-hero-android/
 ├── app/src/main/java/com/kidslab/habithero/
-│   ├── data/local/          # Entidades, DAO, convertidores, base y semilla
+│   ├── data/local/          # Entidades, DAO, convertidores, base, semilla y migración
 │   ├── data/repository/     # HabitHeroRepository
-│   ├── domain/              # Rachas, recompensas, insignias, mensajes
-│   ├── ui/                  # Tema, navegación, componentes y 6 pantallas
-│   └── util/                # Catálogos de emojis y fechas en español
+│   ├── domain/              # Rachas, recompensas, insignias, categorías, tienda, desafíos
+│   ├── notifications/       # Recordatorios locales (AlarmManager)
+│   ├── ui/                  # Tema, navegación, componentes y 7 pantallas
+│   └── util/                # Catálogos de emojis, tienda y fechas en español
 ├── app/src/test/            # Pruebas unitarias (JVM + Robolectric)
 ├── database/                # schema.sql y sample_data.sql
 ├── docs/                    # Documentación

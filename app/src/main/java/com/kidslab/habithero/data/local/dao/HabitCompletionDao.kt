@@ -26,6 +26,9 @@ interface HabitCompletionDao {
     @Query("SELECT COUNT(*) FROM habit_completion")
     suspend fun contarTotal(): Int
 
+    @Query("SELECT COUNT(*) FROM habit_completion WHERE fecha = :fecha")
+    suspend fun contarPorFecha(fecha: LocalDate): Int
+
     /**
      * IGNORE hace que un segundo intento en el mismo dia no cree una fila nueva:
      * devuelve -1 gracias al indice unico (habitId, fecha).

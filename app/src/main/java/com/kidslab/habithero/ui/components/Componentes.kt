@@ -36,10 +36,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidslab.habithero.domain.Categoria
 import com.kidslab.habithero.ui.theme.OroMedalla
 import com.kidslab.habithero.ui.theme.Superficie
 import com.kidslab.habithero.ui.theme.colorHabito
 import com.kidslab.habithero.util.FechasEs
+import com.kidslab.habithero.util.TiendaCatalogo
 
 /**
  * Tarjeta grande de hábito: toda la superficie marca o desmarca.
@@ -56,7 +58,9 @@ fun TarjetaHabito(
     textoDias: String,
     alPulsar: () -> Unit,
     alEditar: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    categoria: Categoria? = null,
+    tieneRecordatorio: Boolean = false
 ) {
     val color = colorHabito(colorIndex)
     val fondo = if (marcado) color else Superficie
@@ -100,12 +104,22 @@ fun TarjetaHabito(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(2.dp))
+                val sufijoRecordatorio = if (tieneRecordatorio) " 🔔" else ""
                 Text(
-                    text = if (racha > 0) "🔥 $racha  ·  $textoDias" else textoDias,
+                    text = (if (racha > 0) "🔥 $racha  ·  $textoDias" else textoDias) + sufijoRecordatorio,
                     style = MaterialTheme.typography.labelMedium,
                     color = if (marcado) Color.White.copy(alpha = 0.85f)
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (categoria != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "${categoria.icono} ${categoria.etiqueta}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (marcado) Color.White.copy(alpha = 0.75f)
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
             }
 
             Spacer(Modifier.width(10.dp))
@@ -275,6 +289,44 @@ fun Pastilla(
                 color = tinta.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+/**
+ * Avatar del héroe con su marco de tienda (si tiene uno equipado) y pequeños
+ * adornos según el nivel alcanzado: un avatar que "evoluciona" sin necesitar
+ * ninguna imagen nueva, solo emoji y color.
+ */
+@Composable
+fun AvatarConMarco(
+    avatar: String,
+    nivel: Int,
+    marco: TiendaCatalogo.ItemTienda?,
+    modifier: Modifier = Modifier,
+    tamano: Int = 58
+) {
+    Box(modifier = modifier.size((tamano + 20).dp), contentAlignment = Alignment.Center) {
+        val bordeMarco = Modifier
+            .size(tamano.dp)
+            .clip(CircleShape)
+            .background(Superficie)
+        Box(
+            modifier = if (marco != null) {
+                bordeMarco.border(3.dp, colorHabito(marco.colorIndex), CircleShape)
+            } else {
+                bordeMarco
+            },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = avatar, fontSize = (tamano / 2).sp)
+        }
+
+        if (nivel >= 10) {
+            Text(text = "👑", fontSize = (tamano / 3).sp, modifier = Modifier.align(Alignment.TopCenter))
+        }
+        if (nivel >= 5) {
+            Text(text = "⭐", fontSize = (tamano / 4).sp, modifier = Modifier.align(Alignment.BottomEnd))
         }
     }
 }

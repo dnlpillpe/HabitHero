@@ -30,6 +30,10 @@ interface HabitDao {
     @Query("SELECT IFNULL(MAX(orden), 0) FROM habit")
     suspend fun ordenMaximo(): Int
 
+    /** Habitos activos con recordatorio, para reprogramar las alarmas tras un reinicio. */
+    @Query("SELECT * FROM habit WHERE activo = 1 AND horaRecordatorioMinutos IS NOT NULL")
+    suspend fun conRecordatorio(): List<Habit>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertar(habito: Habit): Long
 

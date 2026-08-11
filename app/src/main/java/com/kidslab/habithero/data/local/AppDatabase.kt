@@ -7,14 +7,18 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.kidslab.habithero.data.local.dao.BadgeDao
+import com.kidslab.habithero.data.local.dao.DesafioDiarioDao
 import com.kidslab.habithero.data.local.dao.HabitCompletionDao
 import com.kidslab.habithero.data.local.dao.HabitDao
 import com.kidslab.habithero.data.local.dao.UserProfileDao
+import com.kidslab.habithero.data.local.dao.UserUnlockDao
 import com.kidslab.habithero.data.local.entity.Badge
+import com.kidslab.habithero.data.local.entity.DesafioDiario
 import com.kidslab.habithero.data.local.entity.Habit
 import com.kidslab.habithero.data.local.entity.HabitCompletion
 import com.kidslab.habithero.data.local.entity.UserBadge
 import com.kidslab.habithero.data.local.entity.UserProfile
+import com.kidslab.habithero.data.local.entity.UserUnlock
 
 @Database(
     entities = [
@@ -22,9 +26,11 @@ import com.kidslab.habithero.data.local.entity.UserProfile
         Habit::class,
         HabitCompletion::class,
         Badge::class,
-        UserBadge::class
+        UserBadge::class,
+        UserUnlock::class,
+        DesafioDiario::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -34,6 +40,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
     abstract fun badgeDao(): BadgeDao
+    abstract fun userUnlockDao(): UserUnlockDao
+    abstract fun desafioDiarioDao(): DesafioDiarioDao
 
     companion object {
         const val NOMBRE = "habithero.db"
@@ -54,10 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
                         DatabaseSeeder.sembrar(db)
                     }
                 })
-                // Version 1: aún no hay migraciones. Si en el futuro cambia el
-                // esquema sin migración escrita, se recrea la base en lugar de
-                // dejar la app inutilizable.
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRACION_1_2)
                 .build()
 
         /** Solo para el borrado total desde Configuración. */

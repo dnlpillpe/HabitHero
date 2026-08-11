@@ -3,19 +3,26 @@ package com.kidslab.habithero.data.repository
 import com.kidslab.habithero.data.local.AppDatabase
 import com.kidslab.habithero.data.local.DatabaseSeeder
 import com.kidslab.habithero.data.local.entity.Badge
+import com.kidslab.habithero.data.local.entity.DesafioDiario
 import com.kidslab.habithero.data.local.entity.Habit
 import com.kidslab.habithero.data.local.entity.HabitCompletion
 import com.kidslab.habithero.data.local.entity.UserBadge
 import com.kidslab.habithero.data.local.entity.UserProfile
+import com.kidslab.habithero.data.local.entity.UserUnlock
 import com.kidslab.habithero.domain.CalculadoraRachas
 import com.kidslab.habithero.domain.CalculadoraRecompensas
 import com.kidslab.habithero.domain.EstadisticasHeroe
+import com.kidslab.habithero.domain.EvaluadorDesafios
 import com.kidslab.habithero.domain.EvaluadorInsignias
+import com.kidslab.habithero.domain.EvaluadorTienda
+import com.kidslab.habithero.domain.GeneradorDesafios
 import com.kidslab.habithero.domain.MensajesAnimo
+import com.kidslab.habithero.util.TiendaCatalogo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * Única puerta de entrada a los datos. Los ViewModel no tocan los DAO directamente.
@@ -26,6 +33,8 @@ class HabitHeroRepository(private val db: AppDatabase) {
     private val habitDao = db.habitDao()
     private val marcaDao = db.habitCompletionDao()
     private val badgeDao = db.badgeDao()
+    private val unlockDao = db.userUnlockDao()
+    private val desafioDao = db.desafioDiarioDao()
 
     // ---------------------------------------------------------------- Lectura
 
@@ -34,8 +43,12 @@ class HabitHeroRepository(private val db: AppDatabase) {
     val todasLasMarcas: Flow<List<HabitCompletion>> = marcaDao.observarTodas()
     val catalogoInsignias: Flow<List<Badge>> = badgeDao.observarCatalogo()
     val insigniasObtenidas: Flow<List<UserBadge>> = badgeDao.observarObtenidas()
+    val itemsDesbloqueados: Flow<List<UserUnlock>> = unlockDao.observarTodas()
 
     suspend fun obtenerHabito(id: Long): Habit? = habitDao.obtener(id)
+
+    /** Hábitos activos con recordatorio, para reprogramar las alarmas tras un reinicio. */
+    suspend fun habitosConRecordatorio(): List<Habit> = habitDao.conRecordatorio()
 
     // ---------------------------------------------------------------- Hábitos
 
@@ -86,6 +99,7 @@ class HabitHeroRepository(private val db: AppDatabase) {
         perfilDao.actualizarRecompensas(nuevasMonedas, nuevaExperiencia, nivelDespues)
 
         val nuevas = otorgarInsigniasPendientes()
+        revisarDesafioDiario(fecha)
 
         return ResultadoMarcado.Exito(
             nombreHabito = habito.nombre,
@@ -167,6 +181,60 @@ class HabitHeroRepository(private val db: AppDatabase) {
     }
 
     suspend fun guardarPerfil(perfil: UserProfile) = perfilDao.guardar(perfil)
+
+    suspend fun actualizarAvatarYMarco(avatar: String, marco: String?) =
+        perfilDao.actualizarAvatarYMarco(avatar, marco)
+
+    // ------------------------------------------------------------------ Tienda
+
+    suspend fun comprarItem(itemId: String): ResultadoCompra {
+        val item = TiendaCatalogo.obtener(itemId) ?: return ResultadoCompra.ItemNoEncontrado
+        val yaComprado = unlockDao.obtener(itemId) != null
+        val perfilActual = perfilDao.obtener() ?: return ResultadoCompra.MonedasInsuficientes
+
+        if (!EvaluadorTienda.puedeComprar(perfilActual.monedas, item.precio, yaComprado)) {
+            return if (yaComprado) ResultadoCompra.YaComprado else ResultadoCompra.MonedasInsuficientes
+        }
+
+        val filaId = unlockDao.insertar(UserUnlock(itemId = itemId))
+        if (filaId == -1L) return ResultadoCompra.YaComprado
+
+        perfilDao.actualizarMonedas(EvaluadorTienda.monedasTrasComprar(perfilActual.monedas, item.precio))
+        return ResultadoCompra.Exito(item)
+    }
+
+    // ------------------------------------------------------------- Desafíos
+
+    fun observarDesafio(fecha: LocalDate): Flow<DesafioDiario?> = desafioDao.observar(fecha)
+
+    /** Devuelve el desafío de hoy, generándolo si todavía no existe. */
+    suspend fun asegurarDesafioDeHoy(fecha: LocalDate = LocalDate.now()): DesafioDiario {
+        desafioDao.obtener(fecha)?.let { return it }
+        val nuevo = GeneradorDesafios.generarPara(fecha)
+        desafioDao.insertar(nuevo)
+        return desafioDao.obtener(fecha) ?: nuevo
+    }
+
+    private suspend fun revisarDesafioDiario(fecha: LocalDate) {
+        val desafio = asegurarDesafioDeHoy(fecha)
+        if (desafio.completado) return
+
+        val marcasHoy = marcaDao.contarPorFecha(fecha)
+        val habitosDeHoy = habitDao.obtenerTodosUnaVez().count { it.activo && it.tocaHoy(fecha) }
+        val minutoActual = LocalTime.now().hour * 60 + LocalTime.now().minute
+
+        if (!EvaluadorDesafios.cumplido(desafio, marcasHoy, habitosDeHoy, minutoActual)) return
+
+        desafioDao.actualizar(desafio.copy(completado = true))
+
+        val perfilActual = perfilDao.obtener() ?: return
+        val nuevaExperiencia = perfilActual.experiencia + desafio.recompensaExperiencia
+        perfilDao.actualizarRecompensas(
+            monedas = perfilActual.monedas + desafio.recompensaMonedas,
+            experiencia = nuevaExperiencia,
+            nivel = CalculadoraRecompensas.nivelPara(nuevaExperiencia)
+        )
+    }
 
     // -------------------------------------------------------------- Reinicio
 

@@ -28,7 +28,7 @@ import com.kidslab.habithero.ui.FabricaViewModels
 import com.kidslab.habithero.ui.components.SelectorEmoji
 import com.kidslab.habithero.util.Catalogos
 
-/** Pantalla 1 de 6: bienvenida breve y elección de avatar. */
+/** Pantalla 1 de 7: bienvenida breve y elección de avatar. */
 @Composable
 fun PantallaBienvenida(
     alTerminar: () -> Unit,

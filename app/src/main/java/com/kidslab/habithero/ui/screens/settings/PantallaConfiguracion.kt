@@ -1,6 +1,9 @@
 package com.kidslab.habithero.ui.screens.settings
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -29,17 +33,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kidslab.habithero.ui.FabricaViewModels
+import com.kidslab.habithero.ui.components.AvatarConMarco
 import com.kidslab.habithero.ui.components.Pastilla
 import com.kidslab.habithero.ui.components.SelectorEmoji
 import com.kidslab.habithero.ui.theme.Color_Error
-import com.kidslab.habithero.util.Catalogos
+import com.kidslab.habithero.util.TiendaCatalogo
 
-/** Pantalla 6 de 6: ajustes del héroe y reinicio de datos. */
+/** Pantalla 7 de 7: ajustes del héroe y reinicio de datos. */
 @Composable
 fun PantallaConfiguracion(
     alReiniciar: () -> Unit,
@@ -112,12 +118,34 @@ fun PantallaConfiguracion(
 
         Spacer(Modifier.height(14.dp))
         SelectorEmoji(
-            opciones = Catalogos.AVATARES,
+            opciones = estado.avataresDisponibles,
             seleccionado = avatar,
             tamano = 50,
             porFila = 6,
             alSeleccionar = { avatar = it }
         )
+
+        if (estado.marcosDesbloqueados.isNotEmpty()) {
+            Spacer(Modifier.height(22.dp))
+            Text(text = "Marco del avatar", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OpcionMarco(
+                    avatar = avatar,
+                    marco = null,
+                    seleccionado = estado.marcoSeleccionado == null,
+                    alSeleccionar = { viewModel.seleccionarMarco(null) }
+                )
+                estado.marcosDesbloqueados.forEach { marco ->
+                    OpcionMarco(
+                        avatar = avatar,
+                        marco = marco,
+                        seleccionado = estado.marcoSeleccionado == marco.id,
+                        alSeleccionar = { viewModel.seleccionarMarco(marco.id) }
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(14.dp))
         Button(
@@ -210,5 +238,27 @@ fun PantallaConfiguracion(
                 TextButton(onClick = { confirmarReinicio = false }) { Text("Mejor no") }
             }
         )
+    }
+}
+
+@Composable
+private fun OpcionMarco(
+    avatar: String,
+    marco: TiendaCatalogo.ItemTienda?,
+    seleccionado: Boolean,
+    alSeleccionar: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(CircleShape)
+            .border(
+                width = if (seleccionado) 3.dp else 0.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            )
+            .clickable(onClick = alSeleccionar)
+            .padding(4.dp)
+    ) {
+        AvatarConMarco(avatar = avatar, nivel = 0, marco = marco, tamano = 48)
     }
 }

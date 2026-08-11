@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Salidas
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+release/
+
+# Sistema
+.DS_Store
+Thumbs.db

@@ -11,11 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,11 +21,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,15 +40,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kidslab.habithero.data.local.entity.DesafioDiario
+import com.kidslab.habithero.domain.Categoria
+import com.kidslab.habithero.domain.GeneradorDesafios
 import com.kidslab.habithero.ui.FabricaViewModels
+import com.kidslab.habithero.ui.components.AvatarConMarco
 import com.kidslab.habithero.ui.components.BarraNivel
 import com.kidslab.habithero.ui.components.EstadoVacio
 import com.kidslab.habithero.ui.components.TarjetaHabito
 import com.kidslab.habithero.ui.theme.AzulHeroe
 import com.kidslab.habithero.ui.theme.AzulProfundo
+import com.kidslab.habithero.ui.theme.MentaLogro
 import com.kidslab.habithero.util.FechasEs
+import com.kidslab.habithero.util.TiendaCatalogo
 
-/** Pantalla 2 de 6: los hábitos de hoy. */
+/** Pantalla 2 de 7: los hábitos de hoy. */
 @Composable
 fun PantallaInicio(
     alCrearHabito: () -> Unit,
@@ -87,6 +93,7 @@ fun PantallaInicio(
             item {
                 CabeceraHeroe(
                     avatar = estado.avatar,
+                    marco = estado.marco,
                     nombre = estado.nombre,
                     nivel = estado.nivel,
                     monedas = estado.monedas,
@@ -96,6 +103,19 @@ fun PantallaInicio(
                     total = estado.totalHoy,
                     alVerProgreso = alVerProgreso,
                     alVerInsignias = alVerInsignias
+                )
+            }
+
+            estado.desafioHoy?.let { desafio ->
+                item {
+                    TarjetaDesafio(desafio = desafio, modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+
+            item {
+                FiltroCategorias(
+                    seleccionada = estado.categoriaFiltro,
+                    alSeleccionar = viewModel::filtrarCategoria
                 )
             }
 
@@ -123,7 +143,9 @@ fun PantallaInicio(
                     textoDias = FechasEs.textoDias(item.habito.diasSemana),
                     alPulsar = { viewModel.pulsarHabito(item) },
                     alEditar = { alEditarHabito(item.habito.id) },
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    categoria = item.habito.categoriaEnum(),
+                    tieneRecordatorio = item.habito.horaRecordatorioMinutos != null
                 )
             }
 
@@ -167,6 +189,7 @@ fun PantallaInicio(
 @Composable
 private fun CabeceraHeroe(
     avatar: String,
+    marco: TiendaCatalogo.ItemTienda?,
     nombre: String,
     nivel: Int,
     monedas: Int,
@@ -186,15 +209,7 @@ private fun CabeceraHeroe(
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(58.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.20f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = avatar, fontSize = 30.sp)
-                }
+                AvatarConMarco(avatar = avatar, nivel = nivel, marco = marco)
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -242,6 +257,71 @@ private fun CabeceraHeroe(
                     icono = "🏅",
                     alPulsar = alVerInsignias,
                     modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FiltroCategorias(
+    seleccionada: Categoria?,
+    alSeleccionar: (Categoria?) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = seleccionada == null,
+                onClick = { alSeleccionar(null) },
+                label = { Text("Todas") }
+            )
+        }
+        items(items = Categoria.entries.toList(), key = { it.name }) { categoria ->
+            FilterChip(
+                selected = seleccionada == categoria,
+                onClick = { alSeleccionar(if (seleccionada == categoria) null else categoria) },
+                label = { Text("${categoria.icono} ${categoria.etiqueta}") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TarjetaDesafio(desafio: DesafioDiario, modifier: Modifier = Modifier) {
+    val (icono, descripcion) = when (desafio.tipo) {
+        GeneradorDesafios.TIPO_TRES_HABITOS -> "🎯" to "Desafío de hoy: marca ${desafio.meta} hábitos"
+        GeneradorDesafios.TIPO_TODOS_HOY -> "🏁" to "Desafío de hoy: completa todos tus hábitos"
+        GeneradorDesafios.TIPO_ANTES_DE_HORA -> "⏰" to "Desafío de hoy: marca alguno antes de las 20:00"
+        else -> "✨" to "Desafío sorpresa de hoy"
+    }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = if (desafio.completado) MentaLogro.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = if (desafio.completado) "✅" else icono, fontSize = 24.sp)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = descripcion, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = if (desafio.completado) {
+                        "¡Completado! +${desafio.recompensaMonedas} 🪙 +${desafio.recompensaExperiencia} ⭐"
+                    } else {
+                        "Recompensa: +${desafio.recompensaMonedas} 🪙 +${desafio.recompensaExperiencia} ⭐"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

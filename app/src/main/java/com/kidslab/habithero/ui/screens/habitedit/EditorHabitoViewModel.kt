@@ -1,9 +1,12 @@
 package com.kidslab.habithero.ui.screens.habitedit
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kidslab.habithero.data.local.entity.Habit
 import com.kidslab.habithero.data.repository.HabitHeroRepository
+import com.kidslab.habithero.domain.Categoria
+import com.kidslab.habithero.notifications.RecordatorioScheduler
 import com.kidslab.habithero.util.Catalogos
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,15 +23,25 @@ data class EstadoEditor(
     val colorIndex: Int = 0,
     val dias: Set<Int> = setOf(1, 2, 3, 4, 5, 6, 7),
     val esPredeterminado: Boolean = false,
+    val categoria: Categoria = Categoria.OTROS,
+    val horaRecordatorioMinutos: Int? = null,
     val guardado: Boolean = false
 ) {
     val nombreValido: Boolean get() = nombre.trim().isNotEmpty()
     val diasValidos: Boolean get() = dias.isNotEmpty()
     val puedeGuardar: Boolean get() = nombreValido && diasValidos
     val caracteresRestantes: Int get() = Habit.MAX_NOMBRE - nombre.length
+    val recordatorioActivo: Boolean get() = horaRecordatorioMinutos != null
+
+    companion object {
+        const val MINUTOS_POR_DEFECTO = 8 * 60 // 08:00
+    }
 }
 
-class EditorHabitoViewModel(private val repositorio: HabitHeroRepository) : ViewModel() {
+class EditorHabitoViewModel(
+    private val repositorio: HabitHeroRepository,
+    private val contexto: Context
+) : ViewModel() {
 
     private val _estado = MutableStateFlow(EstadoEditor())
     val estado: StateFlow<EstadoEditor> = _estado.asStateFlow()
@@ -63,7 +76,9 @@ class EditorHabitoViewModel(private val repositorio: HabitHeroRepository) : View
                     icono = habito.icono,
                     colorIndex = habito.colorIndex,
                     dias = habito.diasSemana.toSet(),
-                    esPredeterminado = habito.esPredeterminado
+                    esPredeterminado = habito.esPredeterminado,
+                    categoria = habito.categoriaEnum(),
+                    horaRecordatorioMinutos = habito.horaRecordatorioMinutos
                 )
             }
         }
@@ -81,6 +96,15 @@ class EditorHabitoViewModel(private val repositorio: HabitHeroRepository) : View
 
     fun aplicarAtajo(dias: Set<Int>) = cambiarDias(dias)
 
+    fun cambiarCategoria(categoria: Categoria) = _estado.update { it.copy(categoria = categoria) }
+
+    fun activarRecordatorio(activo: Boolean) = _estado.update {
+        it.copy(horaRecordatorioMinutos = if (activo) (it.horaRecordatorioMinutos ?: EstadoEditor.MINUTOS_POR_DEFECTO) else null)
+    }
+
+    fun cambiarHoraRecordatorio(hora: Int, minuto: Int) =
+        _estado.update { it.copy(horaRecordatorioMinutos = hora * 60 + minuto) }
+
     fun guardar(alTerminar: () -> Unit) {
         val actual = _estado.value
         if (!actual.puedeGuardar) return
@@ -93,20 +117,30 @@ class EditorHabitoViewModel(private val repositorio: HabitHeroRepository) : View
                 diasSemana = actual.dias.sorted(),
                 colorIndex = actual.colorIndex,
                 esPredeterminado = actual.esPredeterminado,
-                activo = true
+                activo = true,
+                categoria = actual.categoria.name,
+                horaRecordatorioMinutos = actual.horaRecordatorioMinutos
             )
-            if (actual.esNuevo) {
-                repositorio.crearHabito(habito)
+            val idGuardado = if (actual.esNuevo) {
+                val nuevoId = repositorio.crearHabito(habito)
                 repositorio.revisarInsignias()
+                nuevoId
             } else {
                 val original = repositorio.obtenerHabito(actual.habitId)
-                repositorio.actualizarHabito(
-                    habito.copy(
-                        orden = original?.orden ?: 0,
-                        fechaCreacion = original?.fechaCreacion ?: habito.fechaCreacion
-                    )
+                val habitoActualizado = habito.copy(
+                    orden = original?.orden ?: 0,
+                    fechaCreacion = original?.fechaCreacion ?: habito.fechaCreacion
                 )
+                repositorio.actualizarHabito(habitoActualizado)
+                actual.habitId
             }
+
+            if (actual.horaRecordatorioMinutos != null) {
+                RecordatorioScheduler.programar(contexto, habito.copy(id = idGuardado))
+            } else {
+                RecordatorioScheduler.cancelar(contexto, idGuardado)
+            }
+
             _estado.update { it.copy(guardado = true) }
             alTerminar()
         }
@@ -120,6 +154,7 @@ class EditorHabitoViewModel(private val repositorio: HabitHeroRepository) : View
         }
         viewModelScope.launch {
             repositorio.obtenerHabito(actual.habitId)?.let { repositorio.eliminarHabito(it) }
+            RecordatorioScheduler.cancelar(contexto, actual.habitId)
             alTerminar()
         }
     }

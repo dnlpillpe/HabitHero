@@ -32,39 +32,53 @@ app/src/main/java/com/kidslab/habithero/
 │
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt       @Database, singleton, callback de semilla
+│   │   ├── AppDatabase.kt       @Database (v2), singleton, callback de semilla
 │   │   ├── Converters.kt        LocalDate ↔ Long, List<Int> ↔ String
+│   │   ├── Migraciones.kt       MIGRACION_1_2
 │   │   ├── DatabaseSeeder.kt    Datos iniciales vía SQL directo
-│   │   ├── dao/                 UserProfileDao, HabitDao,
-│   │   │                        HabitCompletionDao, BadgeDao
-│   │   └── entity/              UserProfile, Habit, HabitCompletion,
-│   │                            Badge, UserBadge
+│   │   ├── dao/                 UserProfileDao, HabitDao, HabitCompletionDao,
+│   │   │                        BadgeDao, UserUnlockDao, DesafioDiarioDao
+│   │   └── entity/              UserProfile, Habit, HabitCompletion, Badge,
+│   │                            UserBadge, UserUnlock, DesafioDiario
 │   └── repository/
 │       ├── HabitHeroRepository.kt   Única puerta de entrada a los datos
-│       └── ResultadoMarcado.kt      Resultado tipado de marcar un hábito
+│       ├── ResultadoMarcado.kt      Resultado tipado de marcar un hábito
+│       └── ResultadoCompra.kt       Resultado tipado de comprar en la tienda
 │
 ├── domain/                      Reglas puras, sin dependencias de Android
 │   ├── CalculadoraRachas.kt
 │   ├── CalculadoraRecompensas.kt
 │   ├── EvaluadorInsignias.kt
-│   └── MensajesAnimo.kt
+│   ├── MensajesAnimo.kt
+│   ├── Categoria.kt             Categorías fijas de hábito
+│   ├── EvaluadorTienda.kt       Reglas de compra en la tienda
+│   ├── GeneradorDesafios.kt     Elige el desafío sorpresa del día
+│   └── EvaluadorDesafios.kt     Evalúa si el desafío del día se cumplió
+│
+├── notifications/                Recordatorios locales (AlarmManager)
+│   ├── RecordatorioScheduler.kt  Programa/cancela alarmas por hábito
+│   ├── ReminderBroadcastReceiver.kt  Muestra la notificación si corresponde
+│   ├── BootReceiver.kt           Reprograma alarmas tras reiniciar el equipo
+│   └── CanalNotificaciones.kt    Crea el NotificationChannel
 │
 ├── ui/
 │   ├── FabricaViewModels.kt     Fábrica única de ViewModel
 │   ├── RaizViewModel.kt         Decide bienvenida vs. inicio
 │   ├── theme/                   Color, Type, Theme
 │   ├── navigation/              Rutas, RaizHabitHero (NavHost + barra)
-│   ├── components/              Componentes reutilizables
+│   ├── components/              Componentes reutilizables (incluye AvatarConMarco)
 │   └── screens/
 │       ├── welcome/             Pantalla 1
 │       ├── home/                Pantalla 2
 │       ├── habitedit/           Pantalla 3
 │       ├── progress/            Pantalla 4
-│       ├── badges/              Pantalla 5
-│       └── settings/            Pantalla 6
+│       ├── shop/                Pantalla 5 (tienda de recompensas)
+│       ├── badges/              Pantalla 6
+│       └── settings/            Pantalla 7
 │
 └── util/
-    ├── Catalogos.kt             Emojis de avatares e iconos
+    ├── Catalogos.kt             Emojis de avatares e iconos gratuitos
+    ├── TiendaCatalogo.kt        Catálogo fijo de la tienda (avatares y marcos)
     └── FechasEs.kt              Días y meses en español, sin Locale
 ```
 
@@ -134,6 +148,34 @@ que es lo que las hace comprobables en la JVM.
 `RACHA`, `MONEDAS`, `NIVEL`, `HABITO_PROPIO`— se comparan con un
 `EstadisticasHeroe`. Las insignias se conceden pero **nunca se retiran**.
 
+**Categorías** (`Categoria`). Enum fijo (`SALUD`, `ESTUDIO`, `HOGAR`,
+`EJERCICIO`, `OTROS`) con etiqueta e icono. Puramente descriptivo: solo se usa
+para filtrar y agrupar en la interfaz, nunca cambia recompensas ni rachas.
+
+**Tienda** (`EvaluadorTienda`). `puedeComprar(monedas, precio, yaComprado)` y
+`monedasTrasComprar(...)` (con suelo en 0). El catálogo de items en sí
+(`util/TiendaCatalogo.kt`) está hardcodeado, igual que `Catalogos.kt`: es
+contenido fijo de la app, no dato de usuario. Lo único que persiste en Room es
+la compra (`UserUnlock`) y el marco equipado (`UserProfile.marcoSeleccionado`).
+
+**Desafíos diarios** (`GeneradorDesafios`, `EvaluadorDesafios`).
+`GeneradorDesafios.generarPara(fecha)` elige una de tres plantillas
+(`TRES_HABITOS`, `TODOS_HOY`, `ANTES_DE_HORA`) con una semilla determinista
+basada en `fecha.toEpochDay()`, para que la misma fecha siempre produzca el
+mismo desafío. `EvaluadorDesafios.cumplido(...)` decide si ya se cumplió, y se
+llama desde `HabitHeroRepository.marcarHabito()` después de cada marca; la
+recompensa solo se otorga una vez gracias al flag `completado` guardado en
+`DesafioDiario`.
+
+**Recordatorios locales** (`notifications/`). No es una regla de dominio pura
+(usa `AlarmManager`, por eso vive en su propio paquete y no en `domain/`), pero
+sigue el mismo espíritu: `RecordatorioScheduler` programa una alarma diaria
+*inexacta* (`AlarmManager.setRepeating`, sin permiso de alarmas exactas) por
+cada hábito con `horaRecordatorioMinutos != null`; `ReminderBroadcastReceiver`
+solo notifica si, a esa hora, el hábito sigue sin marcar hoy; `BootReceiver`
+reprograma todo tras un reinicio del dispositivo, porque el sistema borra las
+alarmas al apagarse.
+
 ---
 
 ## 5. Base de datos
@@ -150,18 +192,42 @@ quien toque el código:
 - La semilla se ejecuta en `RoomDatabase.Callback.onCreate` con SQL directo, no
   con los DAO: dentro de `onCreate` la base todavía no está disponible para
   Room.
-- `exportSchema = true` con `room.schemaLocation` deja `app/schemas/1.json` tras
-  compilar. Ese archivo es el punto de partida de cualquier migración futura.
+- `exportSchema = true` con `room.schemaLocation` deja `app/schemas/2.json` tras
+  compilar. Ese archivo es el punto de partida de cualquier migración futura
+  (a partir de la 2, ya sí habrá un JSON exportado real).
+- Desde la versión 2 el esquema **ya no usa** `fallbackToDestructiveMigration()`:
+  cualquier cambio de esquema necesita su propia `Migration`, para no borrar
+  los datos de un héroe real al actualizar la app.
 
-### Cómo añadir una versión 2
+### Cómo se hizo la migración 1 → 2 (y cómo hacer la siguiente)
 
-1. Modifica las entidades.
-2. Sube `version` en `@Database`.
-3. Escribe la `Migration(1, 2)` comparando `app/schemas/1.json` y `2.json`.
-4. Regístrala con `.addMigrations(MIGRATION_1_2)` y **quita**
+La versión 1 de este proyecto nunca llegó a compilarse, así que no existe un
+`app/schemas/1.json` exportado del que partir con el procedimiento habitual de
+`MigrationTestHelper`. Por eso `MIGRACION_1_2` se escribió y se probó así:
+
+1. Se modificaron las entidades (`Habit.horaRecordatorioMinutos`,
+   `Habit.categoria`, `UserProfile.marcoSeleccionado`) y se añadieron las
+   entidades nuevas (`UserUnlock`, `DesafioDiario`).
+2. Se subió `version` a `2` en `@Database` y se registraron las entidades y
+   DAO nuevos.
+3. Se escribió `MIGRACION_1_2` (`data/local/Migraciones.kt`) a mano, con
+   `ALTER TABLE ... ADD COLUMN` (todas las columnas nuevas tienen valor por
+   defecto o admiten `NULL`, así que no hace falta reconstruir ninguna tabla)
+   y `CREATE TABLE` para las dos tablas nuevas.
+4. Se registró con `.addMigrations(MIGRACION_1_2)` y se quitó
    `.fallbackToDestructiveMigration()`.
-5. Añade una prueba con `MigrationTestHelper` (`androidx.room:room-testing`, ya
-   está entre las dependencias de test).
+5. Como no había `1.json`, la prueba (`MigracionTest.kt`) construye a mano una
+   base con el esquema v1 exacto (copiado de `database/schema.sql` tal como
+   estaba antes de este cambio), inserta filas de ejemplo, la reabre con Room
+   aplicando `MIGRACION_1_2`, y comprueba que no lance excepción (Room valida
+   el esquema resultante contra las entidades en cada apertura) y que los
+   datos previos sigan intactos.
+
+**Para la próxima migración (2 → 3)**, ya sí existirá `app/schemas/2.json`
+tras la primera compilación en CI, así que se puede volver al procedimiento
+estándar de Room: comparar `2.json` con `3.json` y usar `MigrationTestHelper`
+(`androidx.room:room-testing`, ya está entre las dependencias de test) en vez
+de construir el esquema anterior a mano.
 
 ---
 
@@ -247,11 +313,15 @@ Nunca subas el almacén de claves ni las contraseñas al repositorio.
 
 ## 9. Ideas para extender
 
+Recordatorios locales, categorías, tienda de recompensas, desafíos diarios y
+el avatar que evoluciona con el nivel ya están implementados (ver §4 y
+`docs/MEMORIA_DESCRIPTIVA.md`). Ideas razonables para seguir:
+
 | Función | Por dónde empezar |
 |---|---|
-| Recordatorios locales | `AlarmManager` + `NotificationCompat`. Requiere el permiso `POST_NOTIFICATIONS` en API 33+, lo que rompería la promesa de «cero permisos»: conviene hacerlo opcional. |
-| Varios perfiles | Añadir `userId` como clave foránea en `habit` y `user_badge`, y un selector de perfil. Implica una migración. |
-| Tienda de recompensas | Nueva tabla `reward` y una pantalla para canjear monedas. |
-| Modo oscuro | Añadir un `darkColorScheme` en `Theme.kt` y elegirlo con `isSystemInDarkTheme()`. |
-| Vista mensual | Ampliar `ProgresoViewModel`; la consulta por rango de `fecha` ya está indexada. |
+| Varios perfiles | Añadir `userId` como clave foránea en `habit`, `user_badge`, `user_unlock` y `daily_challenge`, y un selector de perfil. Implica otra migración (3). |
+| Modo oscuro | Añadir un `darkColorScheme` en `Theme.kt` y elegirlo con `isSystemInDarkTheme()`, con opción manual en Ajustes. |
+| Vista mensual/anual | Ampliar `ProgresoViewModel` más allá de `FechasEs.ultimos7Dias`; la consulta por rango de `fecha` ya está indexada. |
+| Más desafíos y más items de tienda | Añadir plantillas a `GeneradorDesafios.PLANTILLAS` y items a `TiendaCatalogo`; ninguno de los dos requiere migración porque son contenido hardcodeado. |
+| Recordatorios exactos | Migrar de `setRepeating` a `setExactAndAllowWhileIdle`, lo que en API 31+ exige pedir el permiso especial `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` desde Ajustes del sistema. |
 | Pruebas de interfaz | `androidx.compose.ui:ui-test-junit4` con `createAndroidComposeRule`. |

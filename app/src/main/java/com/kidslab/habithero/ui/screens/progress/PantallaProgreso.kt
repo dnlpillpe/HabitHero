@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kidslab.habithero.domain.Categoria
 import com.kidslab.habithero.ui.FabricaViewModels
 import com.kidslab.habithero.ui.components.BarraNivel
 import com.kidslab.habithero.ui.components.EstadoVacio
@@ -41,7 +42,7 @@ import com.kidslab.habithero.ui.theme.MentaLogro
 import com.kidslab.habithero.ui.theme.colorHabito
 import com.kidslab.habithero.util.FechasEs
 
-/** Pantalla 4 de 6: resumen visual de los últimos siete días. */
+/** Pantalla 4 de 7: resumen visual de los últimos siete días. */
 @Composable
 fun PantallaProgreso(
     viewModel: ProgresoViewModel = viewModel(factory = FabricaViewModels.Factory)
@@ -121,10 +122,24 @@ fun PantallaProgreso(
 
         if (estado.filas.isNotEmpty()) {
             item { EncabezadoDias(estado) }
-        }
 
-        items(items = estado.filas, key = { it.habito.id }) { fila ->
-            FilaHabito(fila)
+            val agrupadoPorCategoria = estado.filas.groupBy { it.habito.categoriaEnum() }
+            Categoria.entries.forEach { categoria ->
+                val filasDeLaCategoria = agrupadoPorCategoria[categoria].orEmpty()
+                if (filasDeLaCategoria.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "${categoria.icono} ${categoria.etiqueta}",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                        )
+                    }
+                    items(items = filasDeLaCategoria, key = { it.habito.id }) { fila ->
+                        FilaHabito(fila)
+                    }
+                }
+            }
         }
     }
 }

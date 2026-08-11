@@ -5,8 +5,13 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.kidslab.habithero.data.local.AppDatabase
 import com.kidslab.habithero.data.local.entity.Habit
+import com.kidslab.habithero.data.local.entity.UserProfile
 import com.kidslab.habithero.data.repository.HabitHeroRepository
+import com.kidslab.habithero.data.repository.ResultadoCompra
 import com.kidslab.habithero.data.repository.ResultadoMarcado
+import com.kidslab.habithero.domain.CalculadoraRecompensas
+import com.kidslab.habithero.domain.GeneradorDesafios
+import com.kidslab.habithero.util.TiendaCatalogo
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -167,5 +172,73 @@ class HabitHeroRepositoryTest {
         val perfil = db.userProfileDao().obtener()!!
         assertTrue("experiencia insuficiente", perfil.experiencia >= 100)
         assertTrue("el nivel deberia haber subido", perfil.nivel >= 2)
+    }
+
+    @Test
+    fun `comprar un item de la tienda descuenta las monedas y lo desbloquea`() = runTest {
+        repositorio.guardarPerfil(UserProfile(monedas = 100))
+        val item = TiendaCatalogo.AVATARES_EXTRA.first()
+
+        val resultado = repositorio.comprarItem(item.id)
+
+        assertTrue(resultado is ResultadoCompra.Exito)
+        val perfil = db.userProfileDao().obtener()!!
+        assertEquals(100 - item.precio, perfil.monedas)
+        assertNotNull(db.userUnlockDao().obtener(item.id))
+    }
+
+    @Test
+    fun `no se puede comprar un item si no alcanzan las monedas`() = runTest {
+        repositorio.guardarPerfil(UserProfile(monedas = 0))
+        val item = TiendaCatalogo.AVATARES_EXTRA.first()
+
+        val resultado = repositorio.comprarItem(item.id)
+
+        assertEquals(ResultadoCompra.MonedasInsuficientes, resultado)
+        assertEquals(0, db.userProfileDao().obtener()!!.monedas)
+    }
+
+    @Test
+    fun `un item ya comprado no se puede volver a comprar ni a cobrar`() = runTest {
+        repositorio.guardarPerfil(UserProfile(monedas = 200))
+        val item = TiendaCatalogo.AVATARES_EXTRA.first()
+
+        repositorio.comprarItem(item.id)
+        val segundoIntento = repositorio.comprarItem(item.id)
+
+        assertEquals(ResultadoCompra.YaComprado, segundoIntento)
+        assertEquals(200 - item.precio, db.userProfileDao().obtener()!!.monedas)
+    }
+
+    @Test
+    fun `el desafio diario otorga su recompensa una sola vez al cumplirse`() = runTest {
+        repositorio.asegurarPerfil()
+        val desafio = repositorio.asegurarDesafioDeHoy(hoy)
+
+        when (desafio.tipo) {
+            GeneradorDesafios.TIPO_TRES_HABITOS -> {
+                repeat(3) { indice -> repositorio.marcarHabito(crearHabitoDePrueba("Habito $indice"), hoy) }
+            }
+            GeneradorDesafios.TIPO_TODOS_HOY -> {
+                repositorio.marcarHabito(crearHabitoDePrueba(), hoy)
+            }
+            else -> {
+                // TIPO_ANTES_DE_HORA depende de la hora real del reloj; solo se
+                // comprueba que marcar un habito no falle, sin exigir que se cumpla.
+                repositorio.marcarHabito(crearHabitoDePrueba(), hoy)
+                return@runTest
+            }
+        }
+
+        val perfil = db.userProfileDao().obtener()!!
+        val desafioActualizado = db.desafioDiarioDao().obtener(hoy)!!
+        assertTrue(desafioActualizado.completado)
+        assertTrue("la recompensa del desafio deberia sumarse", perfil.monedas >= desafio.recompensaMonedas)
+
+        // Una marca extra, tras completado = true, ya no debe volver a pagar el desafío.
+        val monedasAntesDeLaExtra = perfil.monedas
+        repositorio.marcarHabito(crearHabitoDePrueba("Extra"), hoy)
+        val monedasTrasLaExtra = db.userProfileDao().obtener()!!.monedas
+        assertEquals(CalculadoraRecompensas.monedasPorMarca(1), monedasTrasLaExtra - monedasAntesDeLaExtra)
     }
 }

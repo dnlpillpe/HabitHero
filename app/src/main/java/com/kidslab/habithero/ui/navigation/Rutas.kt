@@ -5,6 +5,7 @@ object Rutas {
     const val INICIO = "inicio"
     const val PROGRESO = "progreso"
     const val INSIGNIAS = "insignias"
+    const val TIENDA = "tienda"
     const val CONFIGURACION = "configuracion"
 
     const val ARG_HABITO = "habitId"
@@ -15,5 +16,5 @@ object Rutas {
         if (habitId == null) "$EDITOR?$ARG_HABITO=0" else "$EDITOR?$ARG_HABITO=$habitId"
 
     /** Rutas que muestran la barra inferior. */
-    val CON_BARRA = setOf(INICIO, PROGRESO, INSIGNIAS, CONFIGURACION)
+    val CON_BARRA = setOf(INICIO, PROGRESO, INSIGNIAS, TIENDA, CONFIGURACION)
 }
